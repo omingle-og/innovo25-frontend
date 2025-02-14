@@ -1,3 +1,4 @@
+// App.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
@@ -5,24 +6,34 @@ import {
     CategoryScale,
     LinearScale,
     BarElement,
+    PointElement,  // Add this
+    LineElement,   //
     Title,
     Tooltip,
     Legend,
     ArcElement
 } from 'chart.js';
-import { Bar, Pie } from 'react-chartjs-2';
+import Sidebar from './components/Sidebar';
+import Filters from './components/Filters';
+import EmissionsSummary from './components/EmissionsSummary';
+import Charts from './components/Charts';
+import Loading from './components/Loading';
+import Error from './components/Error';
 
 ChartJS.register(
     CategoryScale,
     LinearScale,
     BarElement,
+    PointElement,  // Add this
+    LineElement,   //
     Title,
     Tooltip,
     Legend,
     ArcElement
 );
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://192.168.135.3:5000/api';
+// const API_URL = 'http://192.168.135.167:5000/api';
 
 export default function App() {
     const [dashboardData, setDashboardData] = useState({
@@ -114,6 +125,7 @@ export default function App() {
         fetchBusinessUnits();
     }, []);
 
+    // Define handleFilterChange here
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         console.log('Filter changing:', name, value);
@@ -125,7 +137,6 @@ export default function App() {
         }
     };
 
-    // Chart Configurations
     const barChartData = {
         labels: dashboardData.emissions_trend.map(item => item.month),
         datasets: [{
@@ -209,102 +220,35 @@ export default function App() {
 
     return (
         <div className="flex h-screen bg-gray-100">
-            <div className="bg-gray-800 text-white w-64 space-y-6 py-7 px-2 fixed h-full">
-                <h2 className="text-2xl font-bold text-center">Emissions Dashboard</h2>
-                <nav>
-                    <a href="#" className="block py-2.5 px-4 rounded hover:bg-gray-700">Dashboard</a>
-                    <a href="#" className="block py-2.5 px-4 rounded hover:bg-gray-700">Data Upload</a>
-                    <a href="#" className="block py-2.5 px-4 rounded hover:bg-gray-700">Reports</a>
-                </nav>
-            </div>
+            <Sidebar />
 
             <div className="flex-1 ml-64 p-8 overflow-auto">
                 <div className="text-3xl font-bold mb-8">Dashboard Overview</div>
 
-                <div className="mb-6 flex space-x-4">
-                    <select
-                        name="scope"
-                        value={selectedScope}
-                        onChange={handleFilterChange}
-                        className="p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                        disabled={loading}
-                    >
-                        <option value="All Scopes">All Scopes</option>
-                        <option value="Scope1">Scope 1</option>
-                        <option value="Scope2">Scope 2</option>
-                        <option value="Scope3">Scope 3</option>
-                    </select>
+                <Filters
+                    selectedScope={selectedScope}
+                    selectedBusinessUnit={selectedBusinessUnit}
+                    businessUnits={businessUnits}
+                    handleFilterChange={handleFilterChange}
+                    loading={loading}
+                />
 
-                    <select
-                        name="businessUnit"
-                        value={selectedBusinessUnit}
-                        onChange={handleFilterChange}
-                        className="p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                        disabled={loading}
-                    >
-                        {businessUnits.map(unit => (
-                            <option key={unit} value={unit}>{unit}</option>
-                        ))}
-                    </select>
-                </div>
+                {error && <Error error={error} />}
 
-                {error && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                        <p>{error}</p>
-                    </div>
-                )}
-
-                {loading && (
-                    <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                        <p className="mt-2">Loading data...</p>
-                    </div>
-                )}
+                {loading && <Loading />}
 
                 {!loading && !error && (
                     <>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            <div className="bg-white p-6 rounded-lg shadow-md">
-                                <h3 className="text-lg font-semibold mb-2">Total Emissions</h3>
-                                <p className="text-2xl font-bold text-green-600">
-                                    {dashboardData.total_emissions.toLocaleString()} kgCO₂e
-                                </p>
-                            </div>
+                        <EmissionsSummary dashboardData={dashboardData} />
 
-                            <div className="bg-white p-6 rounded-lg shadow-md">
-                                <h3 className="text-lg font-semibold mb-2">Scope 1 Emissions</h3>
-                                <p className="text-2xl font-bold text-blue-600">
-                                    {dashboardData.emissions_by_scope['Scope 1'].toLocaleString()} kgCO₂e
-                                </p>
-                            </div>
-
-                            <div className="bg-white p-6 rounded-lg shadow-md">
-                                <h3 className="text-lg font-semibold mb-2">Scope 2 Emissions</h3>
-                                <p className="text-2xl font-bold text-purple-600">
-                                    {dashboardData.emissions_by_scope['Scope 2'].toLocaleString()} kgCO₂e
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-white p-6 rounded-lg shadow-md">
-                                <div className="h-96">
-                                    <Bar data={barChartData} options={chartOptions} />
-                                </div>
-                            </div>
-
-                            <div className="bg-white p-6 rounded-lg shadow-md">
-                                <div className="h-96">
-                                    <Pie data={scopePieChartData} options={pieChartOptions} />
-                                </div>
-                            </div>
-
-                            <div className="bg-white p-6 rounded-lg shadow-md">
-                                <div className="h-96">
-                                    <Pie data={unitPieChartData} options={unitPieChartOptions} />
-                                </div>
-                            </div>
-                        </div>
+                        <Charts
+                            barChartData={barChartData}
+                            scopePieChartData={scopePieChartData}
+                            unitPieChartData={unitPieChartData}
+                            chartOptions={chartOptions}
+                            pieChartOptions={pieChartOptions}
+                            unitPieChartOptions={unitPieChartOptions}
+                        />
                     </>
                 )}
             </div>
