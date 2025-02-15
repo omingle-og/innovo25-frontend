@@ -1,24 +1,43 @@
-// Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement
+} from 'chart.js';
 import Filters from './Filters';
 import EmissionsSummary from './EmissionsSummary';
 import Charts from './Charts';
 import Loading from './Loading';
 import Error from './Error';
 
-const API_URL = 'http://192.168.135.3:5000/api'; // or your server URL
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement
+);
 
-function Dashboard() {
+const API_URL = 'http://192.168.135.3:5000/api';
+
+export default function App() {
     const [dashboardData, setDashboardData] = useState({
         total_emissions: 0,
         emissions_by_scope: { 'Scope 1': 0, 'Scope 2': 0, 'Scope 3': 0 },
-        emissions_by_business_unit: {
-            'Data Center': 0,
-            'Manufacturing': 0,
-            'Office Operations': 0,
-            'Supply Chain': 0
-        },
+        emissions_by_business_unit: {},  // Now empty object, will be filled dynamically
         emissions_trend: []
     });
     const [selectedScope, setSelectedScope] = useState('All Scopes');
@@ -26,6 +45,44 @@ function Dashboard() {
     const [businessUnits, setBusinessUnits] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    const [advice, setAdvice] = useState(''); // State to store the advice
+    const [loadingAdvice, setLoadingAdvice] = useState(false);
+    const [showAdvice, setShowAdvice] = useState(false);
+
+
+    // const fetchAdvice = async () => {
+    //     try {
+    //         const start = Date.now();
+    //         console.log('Fetching advice...');
+    //
+    //         const response = await axios.post(`${API_URL}/advice`, dashboardData);
+    //         console.log('API Response:', response.data);
+    //
+    //         console.log('Time taken:', Date.now() - start, 'ms');
+    //
+    //         setAdvice(response.data.advice); // Ensure it's accessing the correct property
+    //     } catch (error) {
+    //         console.error('Error fetching advice:', error);
+    //         setAdvice('Failed to fetch advice.');
+    //     }
+    // };
+
+
+    const fetchAdvice = async () => {
+        setLoadingAdvice(true);
+        setShowAdvice(true); // Automatically show the advice section when fetching starts
+        try {
+            const response = await axios.post(`${API_URL}/advice`, dashboardData);
+            setAdvice(response.data.advice);
+        } catch (error) {
+            setAdvice('Failed to fetch advice.');
+        } finally {
+            setLoadingAdvice(false);
+        }
+    };
+
+
 
     const fetchDashboardData = async () => {
         setLoading(true);
@@ -54,12 +111,8 @@ function Dashboard() {
                     'Scope 2': Number(response.data.emissions_by_scope?.['Scope 2']) || 0,
                     'Scope 3': Number(response.data.emissions_by_scope?.['Scope 3']) || 0
                 },
-                emissions_by_business_unit: {
-                    'Data Center': Number(response.data.emissions_by_business_unit?.['Data Center']) || 0,
-                    'Manufacturing': Number(response.data.emissions_by_business_unit?.['Manufacturing']) || 0,
-                    'Office Operations': Number(response.data.emissions_by_business_unit?.['Office Operations']) || 0,
-                    'Supply Chain': Number(response.data.emissions_by_business_unit?.['Supply Chain']) || 0,
-                },
+                emissions_by_business_unit: response.data.emissions_by_business_unit || {},
+                business_unit_trend: response.data.business_unit_trend || {},
                 emissions_trend: Array.isArray(response.data.emissions_trend)
                     ? response.data.emissions_trend.map(item => ({
                         month: item.month,
@@ -113,11 +166,12 @@ function Dashboard() {
     const barChartData = {
         labels: dashboardData.emissions_trend.map(item => item.month),
         datasets: [{
-            label: 'Emissions (business units)',
+            label: 'Emissions (kgCO₂e)',
             data: dashboardData.emissions_trend.map(item => item.emissions),
-            backgroundColor: 'rgba(75, 192, 192, 0.6)',
-            borderColor: 'rgba(75, 192, 192, 1)',
-            borderWidth: 1
+            backgroundColor: 'rgba(209, 90, 222, 1.0)',
+            borderColor: 'rgba(209, 90, 222, 1.0)',
+            // borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 2
         }]
     };
 
@@ -139,24 +193,33 @@ function Dashboard() {
         }]
     };
 
+    // Dynamic colors for business unit chart
+    const getColors = (count) => {
+        const baseColors = [
+            ['rgba(255, 99, 132, 0.8)', 'rgba(255, 99, 132, 1)'],
+            ['rgba(54, 162, 235, 0.8)', 'rgba(54, 162, 235, 1)'],
+            ['rgba(255, 206, 86, 0.8)', 'rgba(255, 206, 86, 1)'],
+            ['rgba(75, 192, 192, 0.8)', 'rgba(75, 192, 192, 1)'],
+            ['rgba(153, 102, 255, 0.8)', 'rgba(153, 102, 255, 1)'],
+            ['rgba(255, 159, 64, 0.8)', 'rgba(255, 159, 64, 1)'],
+            ['rgba(199, 199, 199, 0.8)', 'rgba(199, 199, 199, 1)'],
+            ['rgba(83, 102, 255, 0.8)', 'rgba(83, 102, 255, 1)'],
+        ];
+
+        // Repeat colors if there are more units than colors
+        const colors = [];
+        for (let i = 0; i < count; i++) {
+            colors.push(baseColors[i % baseColors.length]);
+        }
+        return colors;
+    };
+
     const unitPieChartData = {
         labels: Object.keys(dashboardData.emissions_by_business_unit),
         datasets: [{
             data: Object.values(dashboardData.emissions_by_business_unit),
-            backgroundColor: [
-                'rgba(255, 99, 132, 0.8)',
-                'rgba(54, 162, 235, 0.8)',
-                'rgba(255, 206, 86, 0.8)',
-                'rgba(75, 192, 192, 0.8)',
-                'rgba(153, 102, 255, 0.8)'
-            ],
-            borderColor: [
-                'rgba(255, 99, 132, 1)',
-                'rgba(54, 162, 235, 1)',
-                'rgba(255, 206, 86, 1)',
-                'rgba(75, 192, 192, 1)',
-                'rgba(153, 102, 255, 1)'
-            ],
+            backgroundColor: getColors(Object.keys(dashboardData.emissions_by_business_unit).length).map(c => c[0]),
+            borderColor: getColors(Object.keys(dashboardData.emissions_by_business_unit).length).map(c => c[1]),
             borderWidth: 1
         }]
     };
@@ -187,7 +250,7 @@ function Dashboard() {
         maintainAspectRatio: false,
         plugins: {
             legend: { position: 'right' },
-            title: { display: true, text: 'Emissions by Unit' }
+            title: { display: true, text: 'Emissions by Business Unit' }
         }
     };
 
@@ -211,6 +274,32 @@ function Dashboard() {
                 <>
                     <EmissionsSummary dashboardData={dashboardData} />
 
+                    <button
+                        onClick={fetchAdvice}
+                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded my-4"
+                    >
+                        {loadingAdvice ? 'Fetching...' : 'Get Carbon Reduction Advice'}
+                    </button>
+
+                    {showAdvice && (
+                        <div className="mt-4 p-4 bg-gray-100 rounded shadow relative">
+                            <button
+                                onClick={() => setShowAdvice(false)}
+                                className="absolute top-2 right-2 bg-red-500 hover:bg-red-700 text-white px-3 py-1 rounded"
+                            >
+                                ✖ Hide
+                            </button>
+
+                            <h3 className="text-lg font-semibold mb-2">Carbon Reduction Advice:</h3>
+
+                            {loadingAdvice ? (
+                                <div className="text-gray-600">Loading advice...</div>
+                            ) : (
+                                <ReactMarkdown>{advice}</ReactMarkdown>
+                            )}
+                        </div>
+                    )}
+
                     <Charts
                         barChartData={barChartData}
                         scopePieChartData={scopePieChartData}
@@ -224,5 +313,3 @@ function Dashboard() {
         </>
     );
 }
-
-export default Dashboard;
