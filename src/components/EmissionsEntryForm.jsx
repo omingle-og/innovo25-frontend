@@ -194,22 +194,21 @@ const EmissionsEntryForm = () => {
                         </div>
                     </form>
                 </div>
-                )
 
                 <style>
                     {`
-            .drop-area {
-              border: 2px dashed #ccc;
-              border-radius: 20px;
-              width: 480px;
-              font-family: sans-serif;
-              margin: 100px auto;
-              padding: 20px;
-            }
-            .drop-area.highlight {
-              border-color: purple;
-            }
-          `}
+                    .drop-area {
+                    border: 2px dashed #ccc;
+                    border-radius: 20px;
+                    width: 480px;
+                    font-family: sans-serif;
+                    margin: 100px auto;
+                    padding: 20px;
+                    }
+                    .drop-area.highlight {
+                    border-color: purple;
+                    }
+                `}
                 </style>
             </div>
         </div>
